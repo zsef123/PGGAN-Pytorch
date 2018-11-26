@@ -15,10 +15,10 @@ Working
 
 ### TODO 
 
-- [] Equalized Learning Rate
-- [] Evaluation Metric
-- [] GAN Loss
-- [] Make Project Overall Structure
+- [.] Equalized Learning Rate
+- [.] Evaluation Metric
+- [.] GAN Loss
+- [.] Make Project Overall Structure
 
 <hr>
 
