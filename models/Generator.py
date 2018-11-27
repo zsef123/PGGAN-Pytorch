@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.PixelWiseNorm import PixelWiseNormLayer
+from models.EqualizedLR import EqualizedLRLayer
 from config import resl_to_ch
 
 class ToRGBLayer(nn.Module):
@@ -10,7 +11,7 @@ class ToRGBLayer(nn.Module):
         _, in_c  = resl_to_ch[resl]
 
         self.conv = nn.Sequential(
-            nn.Conv2d(in_c, 3, 1),
+            EqualizedLRLayer(nn.Conv2d(in_c, 3, 1, bias=False)),
         )
         self.resl = resl
 
@@ -27,10 +28,10 @@ class ReslBlock(nn.Module):
         # print("UpResl resl : ", resl, "in_c : ", in_c, "out_c :", out_c)
 
         self.conv = nn.Sequential(
-            nn.Conv2d(in_c, out_c,  3, 1, 1),
+            EqualizedLRLayer(nn.Conv2d(in_c, out_c,  3, 1, 1, bias=False)),
             PixelWiseNormLayer(),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(out_c, out_c, 3, 1, 1),
+            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=False)),
             PixelWiseNormLayer(),
             nn.LeakyReLU(inplace=True),
         )
@@ -46,9 +47,10 @@ class G:
 
         in_c, out_c = resl_to_ch[resl]
         self.resl_blocks = [nn.Sequential(
-            nn.ConvTranspose2d(in_c,  out_c, 4),
+            EqualizedLRLayer(nn.ConvTranspose2d(in_c, out_c, 4, bias=False)),
+            PixelWiseNormLayer(),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(out_c, out_c, 3, 1, 1),
+            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=False)),
             PixelWiseNormLayer(),
             nn.LeakyReLU(inplace=True),
         )]

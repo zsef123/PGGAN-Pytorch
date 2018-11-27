@@ -14,24 +14,30 @@ if __name__ == "__main__":
     g = G(4)
     d = D(4)
     for full_step, resl in enumerate(dims):
+        print("==================================================")
+        print("TOTAL:", full_step)
         # stabilization
         for step in range(stabilization_step):
-            latent_init = torch.randn(1, 512, 1, 1)
+            latent_init = torch.randn(4, 512, 1, 1)
             img = g.stabilize_train(latent_init)
             out = d.stabilize_train(img)
+            print("STABILZIATION:", step)
 
         # grow    
         g.grow_network()
         d.grow_network()
-        
+        print("---GROWING---")
+
         # TODO : 마지막 step 에서는 transition skip
         # transition
         if full_step == len(dims) - 1:
             continue
 
         for step in range(transition_step):
-            latent_init = torch.randn(1, 512, 1, 1)
+            latent_init = torch.randn(4, 512, 1, 1)
             img = g.transition_train(latent_init)
             out = d.transition_train(img)
             g.alpha += 1 / (transition_step)
             d.alpha += 1 / (transition_step)
+            print("TRANSITION:", step)
+        print("==================================================")

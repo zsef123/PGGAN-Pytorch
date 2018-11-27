@@ -3,15 +3,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from models.Minibatch_stddev import MiniBatchSTD
+from models.EqualizedLR import EqualizedLRLayer
 from config import resl_to_ch
-
 
 class FromRGBLayer(nn.Module):
     def __init__(self, resl):
         super().__init__()
         _, out_c = resl_to_ch[resl]
         self.conv = nn.Sequential(
-            nn.Conv2d(3, out_c, 1),
+            EqualizedLRLayer(nn.Conv2d(3, out_c, 1, bias=False)),
         )
         # 3 -> 256 -> 512
 
@@ -28,9 +28,9 @@ class _DownReslBlock(nn.Module):
         out_c, in_c  = resl_to_ch[resl]
         
         self.conv = nn.Sequential(
-            nn.Conv2d(in_c, out_c,  3, 1, 1),
+            EqualizedLRLayer(nn.Conv2d(in_c,  out_c, 3, 1, 1, bias=False)),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(out_c, out_c, 3, 1, 1),
+            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=False)),
             nn.LeakyReLU(inplace=True),
             nn.AvgPool2d(2)
         )
@@ -46,12 +46,12 @@ class D:
         in_c, out_c = resl_to_ch[resl]
         self.resl_blocks = [nn.Sequential(
             MiniBatchSTD(group_size=group_size),
-            nn.Conv2d(in_c + 1, out_c, 3, 1, 1),
+            EqualizedLRLayer(nn.Conv2d(in_c + 1, out_c, 3, 1, 1, bias=False)),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(in_c, out_c, 4, 1, 1),        ## TODO? dimension check maybe needed
+            EqualizedLRLayer(nn.Conv2d(in_c, out_c, 4, 1, 1, bias=False)),        ## TODO? dimension check maybe needed
             nn.LeakyReLU(inplace=True),
             nn.AdaptiveAvgPool2d(out_c),
-            nn.Linear(out_c, 1)
+            EqualizedLRLayer(nn.Linear(out_c, 1, bias=False))
         )]
 
         self.rgb_l = None
@@ -87,8 +87,3 @@ class D:
         for resl in self.resl_blocks:
             x = resl(x)
         return x
-
-    # TODO
-    # 1. Eq. LR
-    # 2. Evaluation Metric
-    # 3. Loss (in runner)
