@@ -54,8 +54,11 @@ class D(nn.Module):
         self.rgb_h = FromRGBLayer(resl)
         self.alpha = 0
                
-    def forward(self):
-        raise NotImplementedError("Forward function should not be used directly. Use other forward methods")
+    def forward(self, x, mode):
+        if mode == "transition":
+            return self.transition_forward(x)
+        elif mode == "stabilization":
+            return self.stabilization_forward(x)
 
     def grow_network(self):
         self.resl *= 2
@@ -79,7 +82,7 @@ class D(nn.Module):
             x = resl(x)
         return x
 
-    def stabilize_forward(self, x):
+    def stabilization_forward(self, x):
         x = self.rgb_h(x)
         for resl in self.resl_blocks:
             x = resl(x)

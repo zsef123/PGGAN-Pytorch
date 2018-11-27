@@ -16,8 +16,10 @@ Working
 ### TODO 
 
  - [ ] Evaluation Metric
- - [ ] GAN Loss
  - [ ] Make Project Overall Structure
+ - [ ] Cyclic dataloader
+ - [ ] Make Utils (ex. img export)
+ - [ ] WGAN-GP Loss
 
 <hr>
 
