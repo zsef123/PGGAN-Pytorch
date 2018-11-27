@@ -10,17 +10,12 @@ class FromRGBLayer(nn.Module):
     def __init__(self, resl):
         super().__init__()
         _, out_c = resl_to_ch[resl]
-        self.conv = nn.Sequential(
-            EqualizedLRLayer(nn.Conv2d(3, out_c, 1, bias=False)),
-        )
-        # 3 -> 256 -> 512
+        self.conv = EqualizedLRLayer(nn.Conv2d(3, out_c, 1, bias=False))
 
     def forward(self, x):
         return self.conv(x)
 
-
 class _DownReslBlock(nn.Module):
-
     def __init__(self, resl):
         super().__init__()
         self.resl = resl
@@ -39,8 +34,9 @@ class _DownReslBlock(nn.Module):
     def forward(self, x):        
         return self.conv(x)
 
-class D:
+class D(nn.Module):
     def __init__(self, resl=4, group_size=4):
+        super().__init__()
         self.resl = resl
 
         in_c, out_c = resl_to_ch[resl]
@@ -48,7 +44,7 @@ class D:
             MiniBatchSTD(group_size=group_size),
             EqualizedLRLayer(nn.Conv2d(in_c + 1, out_c, 3, 1, 1, bias=False)),
             nn.LeakyReLU(inplace=True),
-            EqualizedLRLayer(nn.Conv2d(in_c, out_c, 4, 1, 1, bias=False)),        ## TODO? dimension check maybe needed
+            EqualizedLRLayer(nn.Conv2d(in_c, out_c, 4, 1, 1, bias=False)),
             nn.LeakyReLU(inplace=True),
             nn.AdaptiveAvgPool2d(out_c),
             EqualizedLRLayer(nn.Linear(out_c, 1, bias=False))
@@ -58,7 +54,9 @@ class D:
         self.rgb_h = FromRGBLayer(resl)
         self.alpha = 0
                
-        
+    def forward(self):
+        raise NotImplementedError("Forward function should not be used directly. Use other forward methods")
+
     def grow_network(self):
         self.resl *= 2
         self.resl_blocks.insert(0, _DownReslBlock(self.resl))        
@@ -66,7 +64,7 @@ class D:
         self.rgb_h = FromRGBLayer(self.resl)
         self.alpha = 0
 
-    def transition_train(self, x):
+    def transition_forward(self, x):
         # low resl path
         x_down = F.avg_pool2d(x, kernel_size=2)
         rgb_l = self.rgb_l(x_down)
@@ -80,9 +78,8 @@ class D:
         for resl in self.resl_blocks[1:]:
             x = resl(x)
         return x
-        
 
-    def stabilize_train(self, x):
+    def stabilize_forward(self, x):
         x = self.rgb_h(x)
         for resl in self.resl_blocks:
             x = resl(x)

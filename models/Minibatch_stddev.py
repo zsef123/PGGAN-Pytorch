@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
 class MiniBatchSTD(nn.Module):
     def __init__(self, group_size=4):
         super().__init__()
