@@ -17,9 +17,10 @@ Working
 
  - [ ] Evaluation Metric
  - [ ] Make Project Overall Structure
- - [ ] Cyclic dataloader
  - [ ] Make Utils (ex. img export)
  - [ ] WGAN-GP Loss
+ - [ ] Preprocess
+ - [ ] Argument
 
 <hr>
 
