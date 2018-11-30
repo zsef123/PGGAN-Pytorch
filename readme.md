@@ -17,7 +17,6 @@ Working
 
  - [ ] Evaluation Metric
  - [ ] Make Project Overall Structure
- - [ ] Make Utils (ex. img export)
  - [ ] WGAN-GP Loss
  - [ ] Preprocess
  - [ ] Argument
