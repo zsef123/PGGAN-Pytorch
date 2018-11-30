@@ -13,7 +13,7 @@ from datas.preprocess2d import TRAIN_AUGS_2D, TEST_AUGS_2D
 from models.Generator import G
 from models.Discriminator import D
 
-from runners.PGGANrunner import PGGANRunner
+from runners import PGGANRunner
 
 import utils
 from Logger import Logger
