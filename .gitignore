@@ -7,3 +7,5 @@ __pycache__/*
 *.jpg
 *.mat
 *.png
+*.pyc
+

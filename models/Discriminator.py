@@ -35,12 +35,12 @@ class _DownReslBlock(nn.Module):
         return self.conv(x)
 
 class D(nn.Module):
-    def __init__(self, resl=4, group_size=4):
+    def __init__(self, resl=4, group_size=1):
         super().__init__()
         self.resl = resl
 
         in_c, out_c = resl_to_ch[resl]
-        self.resl_blocks = [nn.Sequential(
+        self.resl_blocks = nn.Sequential(nn.Sequential(
             MiniBatchSTD(group_size=group_size),
             EqualizedLRLayer(nn.Conv2d(in_c + 1, out_c, 3, 1, 1, bias=False)),
             nn.LeakyReLU(inplace=True),
@@ -48,21 +48,21 @@ class D(nn.Module):
             nn.LeakyReLU(inplace=True),
             nn.AdaptiveAvgPool2d(out_c),
             EqualizedLRLayer(nn.Linear(out_c, 1, bias=False))
-        )]
+        ))
 
         self.rgb_l = None
         self.rgb_h = FromRGBLayer(resl)
         self.alpha = 0
                
-    def forward(self, x, mode):
-        if mode == "transition":
+    def forward(self, x, phase):
+        if phase == "transition":
             return self.transition_forward(x)
-        elif mode == "stabilization":
+        elif phase == "stabilization":
             return self.stabilization_forward(x)
 
     def grow_network(self):
         self.resl *= 2
-        self.resl_blocks.insert(0, _DownReslBlock(self.resl))        
+        self.resl_blocks = nn.Sequential([_DownReslBlock(self.resl), *self.resl_blocks])
         self.rgb_l = self.rgb_h
         self.rgb_h = FromRGBLayer(self.resl)
         self.alpha = 0

@@ -4,11 +4,11 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchvision.datasets import ImageFolder
 
-from ..config import resl_to_batch
+from config import resl_to_batch
 
 class ScalableLoader:
     def __init__(self, path, shuffle=True, drop_last=False, num_workers=4, shuffled_cycle=True):
-        self.path = path        
+        self.path = path
         self.shuffle = shuffle
         self.drop_last = drop_last
         self.num_workers = num_workers
@@ -17,7 +17,7 @@ class ScalableLoader:
     def __call__(self, resl):        
         batch = resl_to_batch[resl]
 
-        transform = transforms.Compose([transforms.Scale(size=(resl, resl)),
+        transform = transforms.Compose([transforms.Resize(size=(resl, resl)),
                                         transforms.ToTensor()])
         dataset = ImageFolder(root=self.path, transform=transform)
         

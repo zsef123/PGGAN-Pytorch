@@ -21,7 +21,7 @@ class EqualizedLRLayer(nn.Module):
             self.scale = (2 / fan_out) ** 0.5
 
         if bias:
-            bias_data = torch.zeros(layer.weight.size(0))
+            bias_data = torch.zeros(layer.weight.size(0), 1, 1)
             self.bias = nn.Parameter(bias_data)
         else:
             self.bias = 0

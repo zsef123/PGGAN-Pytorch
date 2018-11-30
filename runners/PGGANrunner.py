@@ -1,28 +1,58 @@
 import os
 import time
-import numpy as np
-import torch
-import torch.nn as nn
 from glob import glob
 from itertools import cycle
+
+import numpy as np
+
+import torch
+import torch.nn as nn
+from torch.autograd import grad
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 from ..utils import export_image
+=======
+from utils import export_image
+<<<<<<< HEAD
+>>>>>>> b353212... minor fix for remote debug
+=======
+from ..utils import export_image
+>>>>>>> 5e05a21... minor fix for remote debug
+=======
+from utils import export_image
+>>>>>>> 77da653... minor fix for remote debug
+=======
+from config import resl_to_batch
+>>>>>>> 05d5dc9... (temp) debugging on progress
 
 class PGGANRunner:
     def __init__(self, arg, G, D, optim_G, optim_D, torch_device, loss, logger):
         self.arg    = arg
         self.device = torch_device
         self.logger = logger
-        self.save_dir = arg.save_dir + "/out"
+        self.save_dir = arg.save_dir
         
+        self.batch = resl_to_batch[arg.start_resl]
         self.G = G
         self.D = D
-        self.resl = arg.resl
-        self.loss = loss
         self.optim_G = optim_G
         self.optim_D = optim_D
-        self.ones  = torch.ones(self.arg.batch)
-        self.zeros = torch.zeros(self.arg.batch)
 
+        self.ones  = torch.ones(self.batch)
+        self.zeros = torch.zeros(self.batch)
+
+        if loss == "lsgan":
+            self.loss = nn.MSELoss()
+            self._train_G = self._lsgan_train_G
+            self._train_D = self._lsgan_train_D
+        elif loss == "wgangp":
+            self.loss = None            
+            self.gp_lambda = self.arg.gp_lambda
+            self._train_G = self._wgangp_train_G
+            self._train_D = self._wgangp_train_D
+            
         self.best_metric = -1
 
         self.load() 
@@ -83,25 +113,25 @@ class PGGANRunner:
         else:
             print("Load Failed, not exists file")
 
-    def _train_G(self, mode):
-        latent_init = torch.randn(self.arg.batch, 512, 1, 1).to(self.device)
-        fake_x = self.G.forward(latent_init, mode)
-        fake_y = self.D.forward(fake_x, mode)
+    def _lsgan_train_G(self, phase):
+        latent_init = torch.randn(self.batch, 512, 1, 1).to(self.device)
+        fake_x = self.G.forward(latent_init, phase)
+        fake_y = self.D.forward(fake_x, phase)
 
         self.optim_G.zero_grad()
-        loss_G = torch.sum(self.loss(fake_y, self.ones))
+        loss_G = self.loss(fake_y, self.ones)
         loss_G.backward()
         self.optim_G.step()
         return loss_G
 
-    def _train_D(self, x, mode):
-        latent_init = torch.randn(self.arg.batch, 512, 1, 1).to(self.device)
-        fake_x = self.G.forward(latent_init, mode)
-        fake_y = self.D.forward(fake_x, mode)
-        fake_loss = torch.sum(self.loss(fake_y, self.zeros))
+    def _lsgan_train_D(self, x, phase):
+        latent_init = torch.randn(self.batch, 512, 1, 1).to(self.device)
+        fake_x = self.G.forward(latent_init, phase)
+        fake_y = self.D.forward(fake_x, phase)
+        fake_loss = self.loss(fake_y, self.zeros)
 
-        real_y = self.D.forward(x, mode)
-        real_loss = torch.sum(self.loss(real_y, self.ones))
+        real_y = self.D.forward(x, phase)
+        real_loss = self.loss(real_y, self.ones)
 
         self.optim_D.zero_grad()
         loss_D = fake_loss + real_loss
@@ -109,11 +139,54 @@ class PGGANRunner:
         self.optim_D.step()
         return loss_D
 
+
+    def _wgangp_train_G(self, phase):
+        latent_init = torch.randn(self.batch, 512, 1, 1).to(self.device)
+        fake_x = self.G.forward(latent_init, phase)
+        fake_y = self.D.forward(fake_x, phase)
+
+        self.optim_G.zero_grad()
+        loss_G = -1 * fake_y.mean()
+        loss_G.backward()
+        self.optim_G.step()
+        return loss_G
+
+    def _wgangp_train_D(self, x, phase):
+        latent_init = torch.randn(self.batch, 512, 1, 1).to(self.device)
+        fake_x = self.G.forward(latent_init, phase)
+        fake_y = self.D.forward(fake_x, phase)
+        fake_loss = fake_y.mean()
+
+        real_y = self.D.forward(x, phase)
+        real_loss = -1 * real_y.mean()
+        
+        alpha = torch.rand((self.batch, 1, 1, 1)).to(self.device)
+
+        x_hat = alpha * x.cuda() + (1 - alpha) * fake_x
+        x_hat.requires_grad_(True)
+
+        pred_hat = self.D.forward(x_hat, "stabilization")
+        gradients = grad(outputs=pred_hat, inputs=x_hat,
+                         grad_outputs=torch.ones(pred_hat.size()).to(self.device),
+                         create_graph=True, retain_graph=True, only_inputs=True)[0]
+
+        gp = self.gp_lambda * ((gradients.view(self.batch, -1).norm(2, 1) - 1) ** 2).mean()
+
+        self.optim_D.zero_grad()
+        loss_D = fake_loss + real_loss + gp
+        loss_D.backward()
+        self.optim_D.step()
+        return loss_D
+
+
     def train(self, scalable_loader, stab_step, tran_step):
         global_step = 0
 
         resl = self.arg.start_resl
         loader = scalable_loader(resl)
+
+        print("\n=====================\n", self.G)
+        print("\n=====================\n", self.D)
 
         # Stab for initial resolution (e.g. )
         for step in range(stab_step):
@@ -122,13 +195,23 @@ class PGGANRunner:
             self._train_G("stabilization")
             if (step + 1) % 50 == 0 or (global_step + 1) % 50 == 0:
                 export_image(self.G, self.save_dir, global_step, resl, step, "stabilization", img_num=10)
+                print("Stabilization ... step: %6d / global step : %06d / resl : %d" % (step, global_step, resl))
             global_step += 1
 
         # Grow
         self.G.grow_network()
         self.D.grow_network()
+        print("Grow ... global step: %06d / resl is now %d" % (global_step, resl*2))
 
-        resl *= 2; loader = scalable_loader(resl)
+        print("\n=====================\n", self.G)
+        print("\n=====================\n", self.D)
+        
+        resl *= 2                               ## make this part as function ?
+        loader = scalable_loader(resl)
+        self.batch = resl_to_batch[resl]
+        self.ones  = torch.ones(self.batch)
+        self.zeros = torch.zeros(self.batch)
+
         while (resl < self.arg.end_resl):
             # Trans
             for _ in range(tran_step):
@@ -139,6 +222,7 @@ class PGGANRunner:
                 self.D.alpha += 1 / (tran_step)
                 if (step + 1) % 50 == 0 or (global_step + 1) % 50 == 0:
                     export_image(self.G, self.save_dir, global_step, resl, step, "transition", img_num=10)
+                    print("Transition ... step: %6d / global step: %6d / resl %6d : " % (step, global_step, resl))
                 global_step += 1
 
             # Stab
@@ -148,9 +232,18 @@ class PGGANRunner:
                 self._train_G("stabilization")
                 if (step + 1) % 50 == 0 or (global_step + 1) % 50 == 0:
                     export_image(self.G, self.save_dir, global_step, resl, step, "stabilization", img_num=10)
+                    print("Stabilization ... step: %6d / global step: %6d / resl %6d" % (step, global_step, resl))
                 global_step += 1
 
             # Grow
             self.G.grow_network()
             self.D.grow_network()
-            resl *= 2; loader = scalable_loader(resl)
+            print("Grow ... global step: %06d / resl is now %d" % (global_step, resl*2))
+            print("\n=====================\n", self.G)
+            print("\n=====================\n", self.D)
+
+            resl *= 2
+            loader = scalable_loader(resl)
+            self.batch = resl_to_batch[resl]
+            self.ones  = torch.ones(self.batch)
+            self.zeros = torch.zeros(self.batch)

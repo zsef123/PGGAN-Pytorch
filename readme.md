@@ -16,10 +16,10 @@ Working
 ### TODO 
 
  - [ ] Evaluation Metric
- - [ ] Make Project Overall Structure
- - [ ] WGAN-GP Loss
  - [ ] Preprocess
  - [ ] Argument
-
+ - [ ] Define stab, trans step
+ - [ ] group size under 4
+ - [ ] memory leak?
 <hr>
 

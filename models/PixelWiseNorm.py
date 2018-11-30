@@ -9,5 +9,5 @@ class PixelWiseNormLayer(nn.Module):
 
     def forward(self, x):         
         z = torch.mean(x.pow(2), dim=1, keepdim=True)
-        x /= (torch.sqrt(z) + self.eps)
+        x = x / (torch.sqrt(z) + self.eps)
         return x
