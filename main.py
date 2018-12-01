@@ -44,18 +44,11 @@ def arg_parse():
                         help='Directory name to save the model')
 
     parser.add_argument('--epoch', type=int, default=500, help='The number of epochs')
-<<<<<<< HEAD
-    parser.add_argument('--stab_step', type=int, default=500, help='The number of stabilization step')
-    parser.add_argument('--tran_step', type=int, default=500, help='The number of transition step')
-=======
+
     parser.add_argument('--stab_step', type=int, default=10000, help='The number of stabilization step')
     parser.add_argument('--tran_step', type=int, default=10000, help='The number of transition step')
-<<<<<<< HEAD
->>>>>>> b353212... minor fix for remote debug
+
     parser.add_argument('--batch', type=int, default=64, help='The size of batch')
-    
-    parser.add_argument('--optim', type=str, default='adam', choices=["adam", "sgd"])
-=======
 
     parser.add_argument('--optim_G', type=str, default='adam', choices=["adam", "sgd"])
     parser.add_argument('--optim_D', type=str, default='adam', choices=["adam", "sgd"])
@@ -65,7 +58,6 @@ def arg_parse():
     parser.add_argument('--start_resl', type=float, default=4)
     parser.add_argument('--end_resl',   type=float, default=1024)
 
->>>>>>> 05d5dc9... (temp) debugging on progress
     parser.add_argument('--lr',   type=float, default=0.001)
     # Adam Optimizer
     parser.add_argument('--beta',  nargs="*", type=float, default=(0.5, 0.999))
@@ -95,7 +87,7 @@ if __name__ == "__main__":
     data_path = "../dataset/celeba-1024"
     print("Data Path : ", data_path)
     
-    loader = ScalableLoader(data_path, shuffle=True, drop_last=False, num_workers=arg.cpus, shuffled_cycle=True)
+    loader = ScalableLoader(data_path, shuffle=True, drop_last=False, num_workers=arg.cpus, shuffle_on_cycle=True)
 
     G = G()
     D = D()

@@ -1,3 +1,4 @@
+import random
 import torch
 from torch.utils.data import DataLoader
 
@@ -7,12 +8,12 @@ from torchvision.datasets import ImageFolder
 from config import resl_to_batch
 
 class ScalableLoader:
-    def __init__(self, path, shuffle=True, drop_last=False, num_workers=4, shuffled_cycle=True):
+    def __init__(self, path, shuffle=True, drop_last=False, num_workers=4, shuffle_on_cycle=True):
         self.path = path
         self.shuffle = shuffle
         self.drop_last = drop_last
         self.num_workers = num_workers
-        self.shuffled_cycle = shuffled_cycle
+        self.shuffle_on_cycle = shuffle_on_cycle
         
     def __call__(self, resl):        
         batch = resl_to_batch[resl]
@@ -29,28 +30,22 @@ class ScalableLoader:
             num_workers=self.num_workers
         )
 
-        loader = self._cycle(loader, self.shuffled_cycle)
+        cyclic_loader = self._cyclic_generator(loader)
+        return cyclic_loader
 
-        return loader
-
-    def _cycle(self, loader, shuffled_cycle=True):
-        import random
-
-        saved = []
-        for element in loader:
-            yield element
-            saved.append(element)
-        while saved:
-            if shuffled_cycle:
-                random.shuffle(saved)
-            for element in saved:
+    def _cyclic_generator(self, loader):
+        while True:
+            for element in loader:
                 yield element
+            if self.shuffle_on_cycle:
+                random.shuffle(loader.dataset.imgs)
+            
             
     
 if __name__ == "__main__":
     
     from itertools import cycle
-    sl = ScalableLoader("../dataset", shuffled_cycle=False)
+    sl = ScalableLoader("../dataset", shuffle_on_cycle=False)
     loader = sl(4)
     len_loader = 520
     for idx, item in enumerate(loader):

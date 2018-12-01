@@ -9,23 +9,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import grad
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-from ..utils import export_image
-=======
 from utils import export_image
-<<<<<<< HEAD
->>>>>>> b353212... minor fix for remote debug
-=======
-from ..utils import export_image
->>>>>>> 5e05a21... minor fix for remote debug
-=======
-from utils import export_image
->>>>>>> 77da653... minor fix for remote debug
-=======
 from config import resl_to_batch
->>>>>>> 05d5dc9... (temp) debugging on progress
 
 class PGGANRunner:
     def __init__(self, arg, G, D, optim_G, optim_D, torch_device, loss, logger):
