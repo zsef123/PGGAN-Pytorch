@@ -1,3 +1,4 @@
+import random
 import torch
 from torch.utils.data import DataLoader
 
@@ -34,17 +35,11 @@ class ScalableLoader:
         return loader
 
     def _cycle(self, loader, shuffled_cycle=True):
-        import random
-
-        saved = []
-        for element in loader:
-            yield element
-            saved.append(element)
-        while saved:
-            if shuffled_cycle:
-                random.shuffle(saved)
-            for element in saved:
+        while True:
+            for element in loader:
                 yield element
+            if self.shuffled_cycle:
+                random.shuffle(loader.dataset.imgs)
             
     
 if __name__ == "__main__":
