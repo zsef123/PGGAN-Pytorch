@@ -176,11 +176,11 @@ class PGGANRunner:
         # Stab for initial resolution (e.g. )
         for step in range(stab_step):
             input_, _ = next(loader)
-            self._train_D(input_, "stabilization")
-            self._train_G("stabilization")
+            loss_D = self._train_D(input_, "stabilization")
+            loss_G = self._train_G("stabilization")
             if (step + 1) % 50 == 0 or (global_step + 1) % 50 == 0:
                 export_image(self.G, self.save_dir, global_step, resl, step, "stabilization", img_num=10)
-                print("Stabilization ... step: %6d / global step : %06d / resl : %d" % (step, global_step, resl))
+                print("Stabilization ... step: %6d / global step : %06d / resl : %d / lossD : %f / lossG : %f" % (step, global_step, resl, loss_D, loss_G))
             global_step += 1
 
         # Grow
@@ -201,23 +201,24 @@ class PGGANRunner:
             # Trans
             for _ in range(tran_step):
                 input_, _ = next(loader)
-                self._train_D(input_, "transition")
-                self._train_G("transition")
+                loss_D = self._train_D(input_, "transition")
+                loss_G = self._train_G("transition")
                 self.G.alpha += 1 / (tran_step)
                 self.D.alpha += 1 / (tran_step)
                 if (step + 1) % 50 == 0 or (global_step + 1) % 50 == 0:
                     export_image(self.G, self.save_dir, global_step, resl, step, "transition", img_num=10)
-                    print("Transition ... step: %6d / global step: %6d / resl %6d : " % (step, global_step, resl))
+                    print("Transition ... step: %6d / global step : %06d / resl : %d / lossD : %f / lossG : %f" % (step, global_step, resl, loss_D, loss_G))
                 global_step += 1
 
             # Stab
             for step in range(stab_step):
                 input_, _ = next(loader)
-                self._train_D(input_, "stabilization")
-                self._train_G("stabilization")
+                loss_D = self._train_D(input_, "stabilization")
+                loss_G = self._train_G("stabilization")
                 if (step + 1) % 50 == 0 or (global_step + 1) % 50 == 0:
                     export_image(self.G, self.save_dir, global_step, resl, step, "stabilization", img_num=10)
-                    print("Stabilization ... step: %6d / global step: %6d / resl %6d" % (step, global_step, resl))
+                    print("Stabilization ... step: %6d / global step : %06d / resl : %d / lossD : %f / lossG : %f" % (step, global_step, resl, loss_D, loss_G))
+
                 global_step += 1
 
             # Grow
