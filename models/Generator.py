@@ -12,6 +12,7 @@ class ToRGBLayer(nn.Module):
 
         self.conv = nn.Sequential(
             EqualizedLRLayer(nn.Conv2d(in_c, 3, 1, bias=False)),
+            nn.Tanh()
         )
         self.resl = resl
 
@@ -46,14 +47,14 @@ class G(nn.Module):
         self.resl = resl
 
         in_c, out_c = resl_to_ch[resl]
-        self.resl_blocks = nn.Sequential(nn.Sequential(
+        self.resl_blocks = nn.Sequential(
             EqualizedLRLayer(nn.ConvTranspose2d(in_c, out_c, 4, bias=False)),
             PixelWiseNormLayer(),
             nn.LeakyReLU(inplace=True),
             EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=False)),
             PixelWiseNormLayer(),
             nn.LeakyReLU(inplace=True),
-        ))
+        )
 
         self.rgb_l = None
         self.rgb_h = ToRGBLayer(self.resl)
@@ -68,7 +69,7 @@ class G(nn.Module):
 
     def grow_network(self):
         self.resl *= 2
-        self.resl_blocks.add_module("%d_ReslBlock"%self.resl, ReslBlock(self.resl))        
+        self.resl_blocks = nn.Sequential([*self.resl_blocks, ReslBlock(self.resl)])
         self.rgb_l = self.rgb_h
         self.rgb_h = ToRGBLayer(self.resl)
         self.alpha = 0

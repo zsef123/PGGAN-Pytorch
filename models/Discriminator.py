@@ -40,7 +40,7 @@ class D(nn.Module):
         self.resl = resl
 
         in_c, out_c = resl_to_ch[resl]
-        self.resl_blocks = nn.Sequential(nn.Sequential(
+        self.resl_blocks = nn.Sequential(
             MiniBatchSTD(group_size=group_size),
             EqualizedLRLayer(nn.Conv2d(in_c + 1, out_c, 3, 1, 1, bias=False)),
             nn.LeakyReLU(inplace=True),
@@ -48,7 +48,7 @@ class D(nn.Module):
             nn.LeakyReLU(inplace=True),
             nn.AdaptiveAvgPool2d(out_c),
             EqualizedLRLayer(nn.Linear(out_c, 1, bias=False))
-        ))
+        )
 
         self.rgb_l = None
         self.rgb_h = FromRGBLayer(resl)

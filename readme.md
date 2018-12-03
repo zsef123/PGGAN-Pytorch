@@ -21,5 +21,7 @@ Working
  - [ ] Define stab, trans step
  - [ ] group size under 4
  - [ ] memory leak?
+ - [ ] Transition Foward Perfomance Issue
+    - caused nn.Sequential slicing?
 <hr>
 
