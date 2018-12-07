@@ -2,10 +2,13 @@ __pycache__
 __pycache__/*
 .vscode
 .vscode/*
+.ipynb_checkpoints
+.ipynb_checkpoints/*
 
 outs
 outs/*
 
+.DS_Store
 *.ipynb
 *.npy
 *.jpg
