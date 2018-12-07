@@ -3,6 +3,10 @@ __pycache__/*
 .vscode
 .vscode/*
 
+outs
+outs/*
+
+*.ipynb
 *.npy
 *.jpg
 *.mat

@@ -11,3 +11,4 @@ class PixelWiseNormLayer(nn.Module):
         z = torch.mean(x.pow(2), dim=1, keepdim=True)
         x = x / (torch.sqrt(z) + self.eps)
         return x
+        

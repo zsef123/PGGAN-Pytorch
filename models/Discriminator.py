@@ -10,7 +10,7 @@ class FromRGBLayer(nn.Module):
     def __init__(self, resl):
         super().__init__()
         _, out_c = resl_to_ch[resl]
-        self.conv = EqualizedLRLayer(nn.Conv2d(3, out_c, 1, bias=False))
+        self.conv = EqualizedLRLayer(nn.Conv2d(3, out_c, 1, bias=True))
 
     def forward(self, x):
         return self.conv(x)
@@ -23,9 +23,9 @@ class _DownReslBlock(nn.Module):
         out_c, in_c  = resl_to_ch[resl]
         
         self.conv = nn.Sequential(
-            EqualizedLRLayer(nn.Conv2d(in_c,  out_c, 3, 1, 1, bias=False)),
+            EqualizedLRLayer(nn.Conv2d(in_c,  out_c, 3, 1, 1, bias=True)),
             nn.LeakyReLU(inplace=True),
-            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=False)),
+            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=True)),
             nn.LeakyReLU(inplace=True),
             nn.AvgPool2d(2)
         )
@@ -35,19 +35,20 @@ class _DownReslBlock(nn.Module):
         return self.conv(x)
 
 class D(nn.Module):
-    def __init__(self, resl=4, group_size=1):
+    def __init__(self, resl=4, group_size=4):
         super().__init__()
         self.resl = resl
 
         in_c, out_c = resl_to_ch[resl]
         self.resl_blocks = nn.Sequential(
             MiniBatchSTD(group_size=group_size),
-            EqualizedLRLayer(nn.Conv2d(in_c + 1, out_c, 3, 1, 1, bias=False)),
+            EqualizedLRLayer(nn.Conv2d(in_c + 1, out_c, 3, 1, 1, bias=True)),
             nn.LeakyReLU(inplace=True),
-            EqualizedLRLayer(nn.Conv2d(in_c, out_c, 4, 1, 1, bias=False)),
+            EqualizedLRLayer(nn.Conv2d(in_c, out_c, 4, 1, 0, bias=True)),
             nn.LeakyReLU(inplace=True),
-            nn.AdaptiveAvgPool2d(out_c),
-            EqualizedLRLayer(nn.Linear(out_c, 1, bias=False))
+            nn.AdaptiveAvgPool2d(1),
+            Flatten(),
+            EqualizedLRLayer(nn.Linear(out_c, 1, bias=True)),
         )
 
         self.rgb_l = None
@@ -62,7 +63,7 @@ class D(nn.Module):
 
     def grow_network(self):
         self.resl *= 2
-        self.resl_blocks = nn.Sequential([_DownReslBlock(self.resl), *self.resl_blocks])
+        self.resl_blocks = nn.Sequential(_DownReslBlock(self.resl), *self.resl_blocks)
         self.rgb_l = self.rgb_h
         self.rgb_h = FromRGBLayer(self.resl)
         self.alpha = 0
@@ -87,3 +88,14 @@ class D(nn.Module):
         for resl in self.resl_blocks:
             x = resl(x)
         return x
+
+    def update_alpha(self, delta):
+        self.alpha += delta
+        self.alpha = max(1, self.alpha)
+
+class Flatten(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x):
+        return x.view(x.size(0), -1)

@@ -1,29 +1,35 @@
 import os
 import json
-import matplotlib.pyplot as plt
-from collections import OrderedDict
 from cycler import cycler
+from collections import OrderedDict
+
+import matplotlib.pyplot as plt
 import numpy as np
+
+import torch
+import torchvision
+
 
 # x axis of plot 
 LOG_KEYS = {
-    "train":"epoch",
-    "valid":"epoch",
-    "test": "fname"
+    "stabilization":"global_step",
+    "transition":"global_step",
+    "grow":"global_step"
 }
 
 # y axis of plot
 # save datas like loss, f1-score, PSNR, SSIM ..
 # can multiple datas
 LOG_VALUES = {
-    "train":["loss"],
-    "valid":["acc", "test_acc"],
-    "test": ["train_acc", "valid_acc", "test_acc", "time"]
+    "stabilization":["step", "resl", "loss_G", "loss_D", "alpha_G", "alpha_D"],
+    "transition":["step", "resl", "loss_G", "loss_D", "alpha_G", "alpha_D"],
+    "grow":["resl"]
 }
 
 class Logger:
       
     def __init__(self, save_dir):
+        self.save_dir = save_dir
         self.log_file = save_dir + "/log.txt"
         self.buffers = []
 
@@ -74,15 +80,24 @@ class Logger:
 
         return log_dict
     
+    def save_image(self, G, global_step, resl, step, mode, img_num=5):
+        latent_z = torch.randn(img_num, 512, 1, 1).cuda()
+        generated_img = G.forward(latent_z, "stabilization")
+
+        for idx, img in enumerate(generated_img):
+            if not os.path.exists(self.save_dir + "/fig"):
+                os.mkdir(self.save_dir + "/fig")
+            file_path = "%s/fig/[%03d]_%s_%05d_%05d_%02d.png"% (self.save_dir, resl, mode, global_step, step, idx)
+            torchvision.utils.save_image(img, file_path)
+
     def log_plot(self, log_key, mode="jupyter", 
                  figsize=(12, 12), title="plot", colors=["C1", "C2"]):
         """Plotting Log graph
 
-        If mode is jupyter then call plt.show.
-        Or, mode is slack then save image and return save path
+        Or, mode is slack then save image and r5tu%05d_rn save path
 
         Parameters:
-            log_key : train, valid, test
+            log_kestep, y : train, valid, test
             mode : jupyter or slack
             figsize : argument of plt
             title : plot title

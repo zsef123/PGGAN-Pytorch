@@ -2,7 +2,7 @@ import os
 import torch
 import torchvision
 
-def export_image(G, save_path, global_step, resl, step, phase, img_num=10):
+def export_image(G, save_path, global_step, resl, step, phase, img_num=5):
     latent_z = torch.randn(img_num, 512, 1, 1).cuda()
     generated_img = G.forward(latent_z, "stabilization")
 

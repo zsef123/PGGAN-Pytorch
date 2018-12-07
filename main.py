@@ -11,21 +11,11 @@ from datas.ScalableLoader import ScalableLoader
 
 from models.Generator import G
 from models.Discriminator import D
-
-from runners.PGGANrunner import PGGANRunner
+from runners.PGGANrunner import PGGANrunner
 
 import utils
 from Logger import Logger
 
-def get_optim(net, optim_type, lr, beta, decay, momentum, nesterov):
-    optim = {
-        "adam" : torch.optim.Adam(net.parameters(), lr=lr, betas=beta, weight_decay=decay),
-        "sgd"  : torch.optim.SGD(net.parameters(),
-                                 lr=lr, momentum=momentum,
-                                 weight_decay=decay, nesterov=True)
-    }[optim_type]
-
-    return optim
 
 """parsing and configuration"""
 def arg_parse():
@@ -35,7 +25,7 @@ def arg_parse():
 
     parser.add_argument('--gpus', type=str, default="0,1,2,3,4,5,6,7",
                         help="Select GPU Numbering | 0,1,2,3,4,5,6,7 | ")
-    parser.add_argument('--cpus', type=int, default="16",
+    parser.add_argument('--cpus', type=int, default="32",
                         help="Select CPU Number workers")
     parser.add_argument('--data', type=str, default="",
                         help="data directory name in dataset")
@@ -44,8 +34,7 @@ def arg_parse():
                         help='Directory name to save the model')
 
     parser.add_argument('--epoch', type=int, default=500, help='The number of epochs')
-    parser.add_argument('--stab_step', type=int, default=10000, help='The number of stabilization step')
-    parser.add_argument('--tran_step', type=int, default=10000, help='The number of transition step')
+    parser.add_argument('--img_num', type=int, default=800000, help='The number of images to be used for each phase')
 
     parser.add_argument('--optim_G', type=str, default='adam', choices=["adam", "sgd"])
     parser.add_argument('--optim_D', type=str, default='adam', choices=["adam", "sgd"])
@@ -66,7 +55,6 @@ def arg_parse():
     
     return parser.parse_args()
 
-
 if __name__ == "__main__":
     arg = arg_parse()
 
@@ -80,20 +68,14 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = arg.gpus
     torch_device = torch.device("cuda")
 
-    # TODO: specify this
-    data_path = "../dataset/celeba-1024"
-    print("Data Path : ", data_path)
+    data_path = "../dataset/celeba-%d"
     
-    loader = ScalableLoader(data_path, shuffle=True, drop_last=False, num_workers=arg.cpus, shuffled_cycle=True)
+    loader = ScalableLoader(data_path, shuffle=True, drop_last=True, num_workers=arg.cpus, shuffled_cycle=True)
 
-    G = G()
-    D = D()
-    
-    G = nn.DataParallel(G).to(torch_device)
-    D = nn.DataParallel(D).to(torch_device)
-    
-    optim_G = get_optim(G, arg.optim_G, arg.lr, arg.beta, arg.decay, arg.momentum, nesterov=True)
-    optim_D = get_optim(D, arg.optim_G, arg.lr, arg.beta, arg.decay, arg.momentum, nesterov=True)
+    g = G()
+    d = D()
+    g = nn.DataParallel(g).to(torch_device)
+    d = nn.DataParallel(d).to(torch_device)
 
-    model = PGGANRunner(arg, G, D, optim_G, optim_D, torch_device, arg.loss, logger)
-    model.train(loader, arg.stab_step, arg.tran_step)
+    model = PGGANrunner(arg, g, d, loader, torch_device, arg.loss, logger)
+    model.train()

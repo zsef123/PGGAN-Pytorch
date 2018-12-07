@@ -15,13 +15,15 @@ class ScalableLoader:
         self.num_workers = num_workers
         self.shuffled_cycle = shuffled_cycle
         
-    def __call__(self, resl):        
+    def __call__(self, resl):
         batch = resl_to_batch[resl]
 
         transform = transforms.Compose([transforms.Resize(size=(resl, resl)),
                                         transforms.ToTensor()])
-        dataset = ImageFolder(root=self.path, transform=transform)
-        
+
+        fullpath = self.path % max(64, resl)
+        dataset = ImageFolder(root=fullpath, transform=transform)
+        print("Data path: %s" % fullpath)
         loader = DataLoader(
             dataset=dataset,
             batch_size=batch,
