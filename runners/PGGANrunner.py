@@ -42,9 +42,6 @@ class PGGANrunner:
         self.optim_G = get_optim(self.G, self.arg.optim_G, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
         self.optim_D = get_optim(self.D, self.arg.optim_G, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
 
-        self.ones  = torch.ones(self.batch).to(self.device)
-        self.zeros = torch.zeros(self.batch).to(self.device)
-
         if loss == "lsgan":
             self.step = Train_LSGAN(self.G, self.D, self.optim_G, self.optim_D,
                                     self.batch, self.device)
@@ -122,15 +119,11 @@ class PGGANrunner:
         self.D.to(self.device)
 
         torch.cuda.empty_cache()
-        print("얍!")
 
         self.batch     = resl_to_batch[resl]
         self.stab_step = self.IMG_NUM // self.batch
         self.tran_step = self.IMG_NUM // self.batch
  
-        self.ones  = torch.ones(self.batch).to(self.device)
-        self.zeros = torch.zeros(self.batch).to(self.device)
-
         optim_G = get_optim(self.G, self.arg.optim_G, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
         optim_D = get_optim(self.D, self.arg.optim_D, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
         self.step.grow(self.batch, optim_G, optim_D)
@@ -158,14 +151,17 @@ class PGGANrunner:
             global_step += 1
 
         # Stabilization on initial resolution
-        for step in range(self.stab_step):
-            input_, _ = next(loader)
-            _step(step, input_ , "stabilization")
+        # for step in range(self.stab_step):
+        #     input_, _ = next(loader)
+        #     _step(step, input_ , "stabilization")
 
         while (resl < self.arg.end_resl):
             # Grow and update resolution, batch size, etc. Load the models on GPUs
             resl = self.grow_architecture(resl)
             loader = self.scalable_loader(resl)
+
+            if resl < 1024:
+                continue
 
             # Transition
             for step in range(self.tran_step):

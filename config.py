@@ -21,7 +21,7 @@ resl_to_batch = {
     128  : 32,
     256  : 16,
     512  : 8,
-    1024 : 4
+    1024 : 12
 }
 
 # batch sizes of original implementation was

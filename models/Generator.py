@@ -16,7 +16,6 @@ class ToRGBLayer(nn.Module):
             EqualizedLRLayer(nn.Conv2d(in_c, 3, 1, bias=True)),
             nn.Tanh()
         )
-        self.resl = resl
 
     def forward(self, x):
         return self.conv(x)
@@ -87,9 +86,6 @@ class G(nn.Module):
         # high resolution path
         x = self.resl_blocks[-1](x)
         rgb_h = self.rgb_h(x)
-
-        img_to_export = torch.cat([rgb_l, rgb_h, (self.alpha * rgb_h) + ((1 - self.alpha) * rgb_l)], dim=2)
-        torchvision.utils.save_image(img_to_export, "./outs/etc/samples_%f.png"%self.alpha)
 
         return (self.alpha * rgb_h) + ((1 - self.alpha) * rgb_l)
 

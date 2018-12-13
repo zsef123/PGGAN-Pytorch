@@ -9,7 +9,7 @@ class Train_LSGAN:
         self.optim_G = optim_G
         self.optim_D = optim_D
 
-        self.mse = nn.MSELoss()
+        self.loss = nn.MSELoss()
         self.device = device
 
         self.batch = batch
@@ -51,8 +51,8 @@ class Train_LSGAN:
         self.batch   = batch
         self.optim_G = optim_G
         self.optim_D = optim_D
-        self.ones  = torch.ones(batch).to(device)
-        self.zeros = torch.zeros(batch).to(device)
+        self.ones  = torch.ones(batch).to(self.device)
+        self.zeros = torch.zeros(batch).to(self.device)
 
 
 class Train_WGAN_GP:
@@ -77,7 +77,10 @@ class Train_WGAN_GP:
         gradients = grad(outputs=pred_hat, inputs=x_hat,
                          grad_outputs=torch.ones(pred_hat.size()).to(self.device),
                          create_graph=True, retain_graph=True, only_inputs=True)[0]
-        gp = self.gp_lambda * ((gradients.view(self.batch, -1).norm(2, 1) - 1) ** 2).mean()
+        gpgp_yaya = (gradients.view(self.batch, -1).pow(2).sum(dim=1) + 1e-4).sqrt() - 1
+        # gp = self.gp_lambda * ((gradients.view(self.batch, -1).norm(2, 1) - 1) ** 2).mean()
+        gp = self.gp_lambda * (gpgp_yaya ** 2).mean()
+
         return gp
 
     def train_D(self, x, mode):
@@ -108,3 +111,8 @@ class Train_WGAN_GP:
         loss_G.backward()
         self.optim_G.step()
         return loss_G
+    
+    def grow(self, batch, optim_G, optim_D):
+        self.batch   = batch
+        self.optim_G = optim_G
+        self.optim_D = optim_D

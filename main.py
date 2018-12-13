@@ -78,4 +78,6 @@ if __name__ == "__main__":
     d = nn.DataParallel(d).to(torch_device)
 
     model = PGGANrunner(arg, g, d, loader, torch_device, arg.loss, logger)
-    model.train()
+    with torch.autograd.detect_anomaly():
+        model.train()
+
