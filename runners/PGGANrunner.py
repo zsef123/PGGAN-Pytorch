@@ -9,12 +9,13 @@ import torch
 import torch.nn as nn
 from torch.autograd import grad
 
-from config import resl_to_batch
+from preset import resl_to_batch, resl_to_lr
 
 from runners.train_step import Train_LSGAN, Train_WGAN_GP
 
 
-def get_optim(net, optim_type, lr, beta, decay, momentum, nesterov=True):
+def get_optim(net, optim_type, resl, beta, decay, momentum, nesterov=True):
+    lr = resl_to_lr[resl]
     optim = {
         "adam" : torch.optim.Adam(net.parameters(), lr=lr, betas=beta, weight_decay=decay),
         "sgd"  : torch.optim.SGD(net.parameters(),
@@ -24,23 +25,25 @@ def get_optim(net, optim_type, lr, beta, decay, momentum, nesterov=True):
 
     return optim
 
+
 class PGGANrunner:
-    def __init__(self, arg, G, D, scalable_loader, torch_device, loss, logger):
+    def __init__(self, arg, G, D, scalable_loader, torch_device, loss, tensorboard):
         self.arg    = arg
         self.device = torch_device
-        self.logger = logger
         self.save_dir = arg.save_dir
         self.scalable_loader = scalable_loader
         
-        self.IMG_NUM   = arg.img_num
+        self.img_num   = arg.img_num
         self.batch     = resl_to_batch[arg.start_resl]
-        self.tran_step = self.IMG_NUM // self.batch
-        self.stab_step = self.IMG_NUM // self.batch
+        self.tran_step = self.img_num // self.batch
+        self.stab_step = self.img_num // self.batch
 
         self.G = G
         self.D = D
-        self.optim_G = get_optim(self.G, self.arg.optim_G, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
-        self.optim_D = get_optim(self.D, self.arg.optim_G, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
+        self.optim_G = get_optim(self.G, self.arg.optim_G, self.arg.start_resl, self.arg.beta, self.arg.decay, self.arg.momentum)
+        self.optim_D = get_optim(self.D, self.arg.optim_G, self.arg.start_resl, self.arg.beta, self.arg.decay, self.arg.momentum)
+
+        self.tensorboard = tensorboard
 
         if loss == "lsgan":
             self.step = Train_LSGAN(self.G, self.D, self.optim_G, self.optim_D,
@@ -50,8 +53,6 @@ class PGGANrunner:
                                      self.arg.gp_lambda, self.batch, self.device)
             
         self.best_metric = -1
-
-        self.load() 
 
     def save(self, step, filename):
         """Save current step model
@@ -121,13 +122,13 @@ class PGGANrunner:
         torch.cuda.empty_cache()
 
         self.batch     = resl_to_batch[resl]
-        self.stab_step = self.IMG_NUM // self.batch
-        self.tran_step = self.IMG_NUM // self.batch
+        self.stab_step = self.img_num // self.batch
+        self.tran_step = self.img_num // self.batch
  
-        optim_G = get_optim(self.G, self.arg.optim_G, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
-        optim_D = get_optim(self.D, self.arg.optim_D, self.arg.lr, self.arg.beta, self.arg.decay, self.arg.momentum)
+        optim_G = get_optim(self.G, self.arg.optim_G, resl, self.arg.beta, self.arg.decay, self.arg.momentum)
+        optim_D = get_optim(self.D, self.arg.optim_D, resl, self.arg.beta, self.arg.decay, self.arg.momentum)
         self.step.grow(self.batch, optim_G, optim_D)
-
+        
         return resl
 
     def train(self):
@@ -137,32 +138,30 @@ class PGGANrunner:
 
         def _step(step, input_, mode, LOG_PER_STEP=10):
             nonlocal global_step
-            input_ = input_.to(self.device)
-            loss_D = self.step.train_D(input_, mode)
-            loss_G = self.step.train_G(mode)
 
+            input_ = input_.to(self.device)
+            log_D = self.step.train_D(input_, mode)
+            log_G = self.step.train_G(mode)
+            
             # Save images and record logs
             if (step % LOG_PER_STEP) == 0:
                 print("[% 6d/% 6d : % 3.2f %%]" % (step, self.tran_step, (step / self.tran_step) * 100))
-                self.logger.save_image(self.G, global_step, resl, step, mode, img_num=10)
-                self.logger.log_write(mode, global_step=global_step, step=step,
-                                      resl=resl, loss_D=loss_D.item(), loss_G=loss_G.item(),
-                                      alpha_G=self.G.module.alpha, alpha_D=self.D.module.alpha)
+                self.tensorboard.log_image(self.G, mode, resl, global_step)
+                self.tensorboard.log_scalar("Loss/%d"%(resl), {**log_D, **log_G}, global_step)
+                # self.tensorboard.log_hist(self.G.module, global_step)
+                # self.tensorboard.log_hist(self.D.module, global_step)
             global_step += 1
 
-        # Stabilization on initial resolution
-        # for step in range(self.stab_step):
-        #     input_, _ = next(loader)
-        #     _step(step, input_ , "stabilization")
+        # Stabilization on initial resolution (default: 4 * 4)
+        for step in range(self.stab_step):
+            input_, _ = next(loader)
+            _step(step, input_ , "stabilization")
 
         while (resl < self.arg.end_resl):
             # Grow and update resolution, batch size, etc. Load the models on GPUs
             resl = self.grow_architecture(resl)
             loader = self.scalable_loader(resl)
-
-            if resl < 1024:
-                continue
-
+            
             # Transition
             for step in range(self.tran_step):
                 input_, _ = next(loader)

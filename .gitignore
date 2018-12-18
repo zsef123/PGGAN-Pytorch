@@ -15,4 +15,4 @@ outs/*
 *.mat
 *.png
 *.pyc
-
+*.ubuntu

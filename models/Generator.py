@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from models.PixelWiseNorm import PixelWiseNormLayer
 from models.EqualizedLR import EqualizedLRLayer
-from config import resl_to_ch
 
-import torchvision
+from preset import resl_to_ch
+
 
 class ToRGBLayer(nn.Module):
     def __init__(self, resl):
@@ -13,7 +14,7 @@ class ToRGBLayer(nn.Module):
         _, in_c  = resl_to_ch[resl]
 
         self.conv = nn.Sequential(
-            EqualizedLRLayer(nn.Conv2d(in_c, 3, 1, bias=True)),
+            EqualizedLRLayer(nn.Conv2d(in_c, 3, 1)),
             nn.Tanh()
         )
 
@@ -24,17 +25,15 @@ class ToRGBLayer(nn.Module):
 class ReslBlock(nn.Module):
     def __init__(self, resl):
         super().__init__()
-        self.resl = resl
-        in_c, out_c  = resl_to_ch[resl]        
-        # print("UpResl resl : ", resl, "in_c : ", in_c, "out_c :", out_c)
+        in_c, out_c  = resl_to_ch[resl]
 
         self.conv = nn.Sequential(
-            EqualizedLRLayer(nn.Conv2d(in_c, out_c,  3, 1, 1, bias=True)),
+            EqualizedLRLayer(nn.Conv2d(in_c, out_c,  3, 1, 1)),
             PixelWiseNormLayer(),
-            nn.LeakyReLU(inplace=True),
-            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=True)),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1)),
             PixelWiseNormLayer(),
-            nn.LeakyReLU(inplace=True),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
     
     def forward(self, x):
@@ -49,17 +48,19 @@ class G(nn.Module):
 
         in_c, out_c = resl_to_ch[resl]
         self.resl_blocks = nn.Sequential(
-            EqualizedLRLayer(nn.ConvTranspose2d(in_c, out_c, 4, bias=True)),
+            # Original Repo using "tf.nn.conv2d_transpose"
+            # Same with EqualizedLRLayer(nn.ConvTranspose2d(in_c, out_c, 4)),
+            nn.Upsample(size=(4, 4)),
+            EqualizedLRLayer(nn.Conv2d(in_c, out_c, 1, 1, 0)),
             PixelWiseNormLayer(),
-            nn.LeakyReLU(inplace=True),
-            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1, bias=True)),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            EqualizedLRLayer(nn.Conv2d(out_c, out_c, 3, 1, 1)),
             PixelWiseNormLayer(),
-            nn.LeakyReLU(inplace=True),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
 
         self.rgb_l = None
         self.rgb_h = ToRGBLayer(self.resl)
-
         self.alpha = 0
         
     def forward(self, x, phase):
@@ -76,11 +77,11 @@ class G(nn.Module):
         self.alpha = 0
 
     def transition_forward(self, x):
-        for resl in self.resl_blocks[:-1]:
-            x = resl(x)
-
+        x = self.resl_blocks[:-1](x)
+        
+        # experiment candidate : apply rgb_l first and succeeding interpolate
         # low resolution path
-        x_up = F.interpolate(x, scale_factor=2)        
+        x_up = F.interpolate(x, scale_factor=2)
         rgb_l = self.rgb_l(x_up)
 
         # high resolution path
@@ -90,12 +91,10 @@ class G(nn.Module):
         return (self.alpha * rgb_h) + ((1 - self.alpha) * rgb_l)
 
     def stabilization_forward(self, x):
-        for resl in self.resl_blocks:
-            x = resl(x)
+        x = self.resl_blocks(x)
         rgb_h = self.rgb_h(x)
         return rgb_h
 
     def update_alpha(self, delta):
         self.alpha += delta
-        self.alpha = max(1, self.alpha)
-    
+        self.alpha = min(1, self.alpha)
