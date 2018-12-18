@@ -52,9 +52,11 @@ class PGGANrunner:
             self.step = Train_WGAN_GP(self.G, self.D, self.optim_G, self.optim_D,
                                      self.arg.gp_lambda, self.batch, self.device)
             
-        self.best_metric = -1
+        self.load_resl = -1
+        self.load_global_step = -1
+        self.load()
 
-    def save(self, step, filename):
+    def save(self, global_step, resl, mode):
         """Save current step model
 
         Save Elements:
@@ -68,19 +70,14 @@ class PGGANrunner:
             step : current step
             filename : model save file name
         """
-        if step < 50:
-            return
-
-        torch.save({"model_type_G": self.G,
-                    "model_type_D": self.D,
-                    "start_step" : step + 1,
+        torch.save({"global_step" : global_step,
+                    "resl" : resl,
                     "G" : self.G.state_dict(),
                     "D" : self.D.state_dict(),
                     "optim_G" : self.optim_G.state_dict(),
                     "optim_D" : self.optim_D.state_dict(),
-                    "best_metric": self.best_metric
-                    }, self.save_dir + "/%s.pth.tar"%(filename))
-        print("Model saved %d step"%(step))
+                    }, self.save_dir + "/step_%07d_resl_%d_%s.pth.tar"%(global_step, resl, mode))
+        print("Model saved %d step"%(global_step))
 
     def load(self, filename=None):
         """ Model load. same with save"""
@@ -97,20 +94,20 @@ class PGGANrunner:
         if os.path.exists(file_path) is True:
             print("Load %s to %s File"%(self.save_dir, filename))
             ckpoint = torch.load(file_path)
-            if ckpoint["model_type_G"] != self.G and ckpoint["model_type_D"] != self.D:
-                raise ValueError("Ckpoint Model Type is %s"%(ckpoint["model_type"]))
-            
             self.G.load_state_dict(ckpoint["G"])
             self.D.load_state_dict(ckpoint["D"])
             self.optim_G.load_state_dict(ckpoint['optim_G'])
             self.optim_D.load_state_dict(ckpoint['optim_D'])
-            self.start_epoch = ckpoint['start_epoch']
-            self.best_metric = ckpoint["best_metric"]
-            print("Load Model Type : G:%s / D:%s, epoch : %d acc : %f"%(ckpoint["model_type_G"], ckpoint["model_type_D"], self.start_epoch, self.best_metric))
+            self.load_global_step = ckpoint["global_step"]
+            self.load_resl = ckpoint["resl"]
+            print("Load Model, Global step : %d / Resolution : %d " % (self.load_global_step, self.load_resl))
         else:
             print("Load Failed, not exists file")
 
     def grow_architecture(self, resl):
+        if resl < self.load_resl:
+            return resl * 2
+
         resl *= 2
 
         self.G.module.grow_network()
@@ -136,8 +133,11 @@ class PGGANrunner:
         global_step, resl = 0, self.arg.start_resl
         loader = self.scalable_loader(resl)
 
-        def _step(step, input_, mode, LOG_PER_STEP=10):
+        def _step(step, input_, mode, LOG_PER_STEP=10):            
             nonlocal global_step
+            if global_step <= self.load_global_step:
+                global_step += 1
+                return
 
             input_ = input_.to(self.device)
             log_D = self.step.train_D(input_, mode)
@@ -148,6 +148,7 @@ class PGGANrunner:
                 print("[% 6d/% 6d : % 3.2f %%]" % (step, self.tran_step, (step / self.tran_step) * 100))
                 self.tensorboard.log_image(self.G, mode, resl, global_step)
                 self.tensorboard.log_scalar("Loss/%d"%(resl), {**log_D, **log_G}, global_step)
+                self.save(global_step, resl, mode)
                 # self.tensorboard.log_hist(self.G.module, global_step)
                 # self.tensorboard.log_hist(self.D.module, global_step)
             global_step += 1
