@@ -15,19 +15,19 @@ import utils
 
 """parsing and configuration"""
 def arg_parse():
-    # projects description
     desc = "PGGAN"
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument('--gpus', type=str, default="0,1,2,3,4,5,6,7",
-                        help="Select GPU Numbering | 0,1,2,3,4,5,6,7 | ")
+    parser.add_argument('--gpus', type=str, default="0,1,2,3",
+                        help="Select GPU Numbering | 0,1,2,3 | ")
     parser.add_argument('--cpus', type=int, default="40",
-                        help="Select CPU Number workers")
+                        help="The number of CPU workers")
 
     parser.add_argument('--save_dir', type=str, default='',
-                        help='Directory name to save the model')
+                        help='Directory which models will be saved in')
 
-    parser.add_argument('--img_num', type=int, default=800000, help='The number of images to be used for each phase')
+    parser.add_argument('--img_num', type=int, default=800000,
+                        help='The number of images to be used for each phase')
 
     parser.add_argument('--optim_G', type=str, default='adam', choices=["adam", "sgd"])
     parser.add_argument('--optim_D', type=str, default='adam', choices=["adam", "sgd"])
@@ -38,12 +38,16 @@ def arg_parse():
     parser.add_argument('--end_resl',   type=float, default=1024)
 
     # Adam Optimizer
-    parser.add_argument('--beta',  nargs="*", type=float, default=(0.5, 0.999))
+    parser.add_argument('--beta',  nargs="*", type=float, default=(0.5, 0.999),
+                        help='Beta for Adam optimizer')
     # SGD Optimizer
-    parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--decay',    type=float, default=1e-4)
+    parser.add_argument('--momentum', type=float, default=0.9,
+                        help='Momentum for SGD optimizer')
+    parser.add_argument('--decay',    type=float, default=1e-4,
+                        help='Weight decay for optimizers')
     # Gradient Panelty
-    parser.add_argument('--gp_lambda', type=float, default=10.0, help='lambda for Gradient Panelty')
+    parser.add_argument('--gp_lambda', type=float, default=10.0,
+                        help='Lambda as a weight of Gradient Panelty in WGAN-GP loss')
     
     return parser.parse_args()
 
