@@ -16,11 +16,11 @@ class ScalableLoader:
         self.drop_last = drop_last
         self.num_workers = num_workers
         self.shuffled_cycle = shuffled_cycle
-        
+
     def __call__(self, resl):
         batch = resl_to_batch[resl]
 
-        transform = transforms.Compose([transforms.Resize(size=(resl, resl), 
+        transform = transforms.Compose([transforms.Resize(size=(resl, resl),
                                                           interpolation=Image.NEAREST),
                                         transforms.ToTensor()])
 
@@ -44,4 +44,3 @@ class ScalableLoader:
                 yield element
             if self.shuffled_cycle:
                 random.shuffle(loader.dataset.imgs)
-                

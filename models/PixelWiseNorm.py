@@ -2,15 +2,11 @@ import torch
 import torch.nn as nn
 
 
-class PixelWiseNormLayer(nn.Module):
+class PixelWiseNorm(nn.Module):
     def __init__(self):
         super().__init__()
-        self.eps = 1e-38
 
     def forward(self, x):
-        x = x.type(torch.float64)
-        z = torch.mean(x ** 2, dim=1, keepdim=True)
-        x = x * (torch.rsqrt(z + self.eps))
-        x = x.type(torch.float32)
-        return x
-        
+        x_square_mean = x.pow(2).mean(dim=1, keepdim=True)
+        denom = torch.rsqrt(x_square_mean + 1e-8)
+        return x * denom
