@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.dw_modules import MiniBatchSTD
-from models.dw_modules import EqualizedLR
+from models.Minibatch_stddev import MiniBatchSTD
+from models.EqualizedLR import EqualizedLR
 
 from preset import resl_to_ch
 
